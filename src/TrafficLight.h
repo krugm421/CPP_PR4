@@ -9,6 +9,8 @@
 // forward declarations to avoid include cycle
 class Vehicle;
 
+enum class TrafficLightPhase {red, green};
+
 
 // FP.3 Define a class „MessageQueue“ which has the public methods send and receive. 
 // Send should take an rvalue reference of type TrafficLightPhase whereas receive should return this type. 
@@ -24,8 +26,8 @@ public:
     void send(T &&value);
 private:
     std::deque<T> _deque;
-    std:mutex _mutex;
-    std::conditional_variable _cond;
+    std::mutex _mutex;
+    std::condition_variable _cond;
 };
 
 // FP.1 : Define a class „TrafficLight“ which is a child class of TrafficObject. 
@@ -57,7 +59,7 @@ private:
     std::condition_variable _condition;
     std::mutex _mutex;
     TrafficLightPhase _currentPhase;
-    MessageQueue<TrafficLightPhase> _message_queue;
+    std::shared_ptr<MessageQueue<TrafficLightPhase>> _queue;
 };
 
 #endif

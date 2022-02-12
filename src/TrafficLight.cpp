@@ -30,6 +30,8 @@ void MessageQueue<T>::send(T &&msg)
     // as well as _condition.notify_one() to add a new message to the queue and afterwards send a notification.
 
     std::lock_guard<std::mutex> myLock(this->_mutex);
+  	this->_deque.clear();
+  
     this->_deque.push_back(std::move(msg));
     this->_cond.notify_one();
 }
@@ -40,6 +42,7 @@ void MessageQueue<T>::send(T &&msg)
 
 TrafficLight::TrafficLight()
 {
+  	_queue = std::make_shared<MessageQueue<TrafficLightPhase>>();
     this->_currentPhase = TrafficLightPhase::red;
 }
 
@@ -50,8 +53,10 @@ void TrafficLight::waitForGreen()
     // Once it receives TrafficLightPhase::green, the method returns.
     while (true)
     {
-        auto current_traffic_light_phase = this->_message_queue.receive();
-        if (current_traffic_light_pahse == TrafficLightPhase::green) return;   
+        auto current_traffic_light_phase = this->_queue->receive();
+        if (current_traffic_light_phase == TrafficLightPhase::green) {
+          return;
+        }
     }
 }
 
@@ -65,7 +70,7 @@ void TrafficLight::simulate()
     // FP.2b : Finally, the private method „cycleThroughPhases“ should be started in a thread when the public method „simulate“ is called. 
     // To do this, use the thread queue in the base class. 
     this->threads.emplace_back(std::thread(
-        TrafficLight::cycleThroughPhases, this
+        &TrafficLight::cycleThroughPhases, this
     ));
 }
 
@@ -93,16 +98,14 @@ void TrafficLight::cycleThroughPhases()
         auto delta_T = std::chrono::duration_cast<std::chrono::milliseconds> (T2 - T1).count();
         if (delta_T >= period_time)
         {
+
             this->_currentPhase = 
                 this->_currentPhase == TrafficLightPhase::red ? TrafficLightPhase::green : TrafficLightPhase::red;
+          	this->_queue->send(std::move(this->_currentPhase));
             T1 = T2;
             period_time = rdn_cycle_time(); 
-
-            // Send update
-            auto p = this->_currentPhase;
-            this->_message_queue.send(std::move(p));
         }        
         
-        std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
     }
 }
